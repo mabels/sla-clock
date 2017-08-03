@@ -1,0 +1,76 @@
+{
+  "name": "sla-clock-collector",
+  "version": "0.1.0",
+  "description": "",
+  "main": "dist/collector.js",
+  "engines": {
+    "node": ">=6.9.5"
+  },
+  "scripts": {
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
+    "build": "tsc",
+    "build:watch": "tsc-watch server.ts --outDir ./dist --onSuccess 'node ./dist/server.ts'",
+    "start": "nodemon ./dist/collector.js",
+    "pretest": "npm run build",
+    "test": "node ./node_modules/mocha/bin/mocha",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -w",
+    "preversion": "npm test",
+    "version": "npm run build && conventional-changelog -p angular -v -r 0 > CHANGELOG.md && git add -A .",
+    "postversion": "git push && git push --tags",
+    "prepublish": "not-in-install && npm run build || echo 'In install cycle, skipping prepublish'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "mabels/sla-clock"
+  },
+  "license": "AFL-2.0",
+  "bugs": {
+    "url": "https://github.com/mabels/sla-clock/issues"
+  },
+  "homepage": "https://github.com/mabels/sla-clock#readme",
+  "devDependencies": {
+    "@types/chai": ">=3.4.33",
+    "@types/mocha": ">=2.2.33",
+    "chai": ">=3.5.0",
+    "file-loader": ">=0.9.0",
+    "globby": ">=5.0.0",
+    "in-publish": ">=2.0.0",
+    "mocha": ">=2.5.3",
+    "nodemon": ">=1.9.2",
+    "source-map-support": ">=0.4.1",
+    "ts-loader": "^2.3.2",
+    "tsc-watch": "^1.0.7",
+    "tslint": ">=3.11.0",
+    "typescript": ">=2.1.5",
+    "url-loader": ">=0.5.7",
+    "webpack": ">=2.2.0"
+  },
+  "dependencies": {
+    "@types/classnames": ">=0.0.32",
+    "@types/fs-extra": ">=3.0.0",
+    "@types/node-uuid": ">=0.0.28",
+    "@types/pg": "^6.1.43",
+    "@types/rimraf": ">=0.0.28",
+    "@types/sequelize": "^4.0.67",
+    "@types/winston": ">=0.0.32",
+    "fs-extra": ">=3.0.1",
+    "node-uuid": ">=1.4.7",
+    "pg": "^7.0.2",
+    "reflect-metadata": "^0.1.10",
+    "rimraf": ">=2.5.2",
+    "rxjs": "^5.4.2",
+    "rxjs-exec": "^0.4.1",
+    "sequelize": "^4.4.2",
+    "sequelize-typescript": "^0.3.5",
+    "winston": ">=2.2.0"
+  },
+  "publishConfig": {
+    "tag": "next"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
+}
