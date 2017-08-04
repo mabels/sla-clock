@@ -1,9 +1,12 @@
 // import * as Sequelize from 'sequelize';
 //import * as SeqType from 'sequelize-typescript';
-import { Table, Column, Model, HasMany, CreatedAt, IsUUID,
-    UpdatedAt, DeletedAt, Sequelize, DataType, PrimaryKey } from 'sequelize-typescript';
+import {
+  Table, Column, Model, HasMany, CreatedAt, IsUUID,
+  UpdatedAt, DeletedAt, Sequelize, DataType, PrimaryKey
+} from 'sequelize-typescript';
 
 import * as Rx from 'rxjs';
+import * as uuid from 'uuid';
 
 /*
  *
@@ -23,10 +26,10 @@ import * as Rx from 'rxjs';
  */
 
 @Table
-export class List extends Model<List> {
+export class Entry extends Model<Entry> {
   @IsUUID(4)
   @PrimaryKey
-  @Column(DataType.STRING)
+  @Column(DataType.UUID)
   public id: string;
   @Column(DataType.STRING)
   public url: string;
@@ -46,14 +49,63 @@ export class List extends Model<List> {
   public deletionDate: Date;
 }
 
-export function list(sequelize: Sequelize): Rx.Observable<List[]> {
-  sequelize.addModels([List]);
-  return Rx.Observable.create((observer: Rx.Observer<List[]>) => {
-    List.sync().then(() => {
-      List.findAll().then((lst: List[]) => {
-        observer.next(lst);
-        observer.complete();
+export class SlaClock {
+  public sequelize: Sequelize;
+  constructor(sequelize: Sequelize) {
+    this.sequelize = sequelize;
+  }
+
+  public list(): Rx.Observable<Entry[]> {
+    this.sequelize.addModels([Entry]);
+    return Rx.Observable.create((observer: Rx.Observer<Entry[]>) => {
+      Entry.sync().then(() => {
+        Entry.findAll().then((lst: Entry[]) => {
+          observer.next(lst);
+          observer.complete();
+        });
       });
     });
-  });
+  }
+
+  public add(e: Entry): Rx.Observable<Entry> {
+    e.id = e.id || uuid.v4();
+    this.sequelize.addModels([Entry]);
+    return Rx.Observable.create((observer: Rx.Observer<Entry>) => {
+      Entry.sync().then(() => {
+        e.save().then((value: Entry) => {
+          observer.next(value);
+          observer.complete();
+        });
+      });
+    });
+  }
+
+  public update(e: Entry): Rx.Observable<Entry> {
+    this.sequelize.addModels([Entry]);
+    return Rx.Observable.create((observer: Rx.Observer<Entry>) => {
+      Entry.sync().then(() => {
+        e.save().then((value: Entry) => {
+          observer.next(value);
+          observer.complete();
+        });
+      });
+    });
+  }
+
+
+  public delete(id: string): Rx.Observable<Entry> {
+    this.sequelize.addModels([Entry]);
+    return Rx.Observable.create((observer: Rx.Observer<Entry>) => {
+      Entry.sync().then(() => {
+        Entry.findById(id).then((value: Entry) => {
+          Entry.destroy({
+            where: { id: id }
+          }).then((count: number) => {
+            observer.next(value);
+            observer.complete();
+          });
+        });
+      });
+    });
+  }
 }

@@ -68,9 +68,10 @@ export class PostgresSqlDaemon {
       port: this.cdb.port,
       name: (dbName && dbName.toLowerCase()) || 'postgres',
       username: 'postgres',
-      password: ''
+      password: '',
+      logging: false
     };
-    console.log('sequelize', sequelizeConfig);
+    // console.log('sequelize', sequelizeConfig);
     return new Sequelize(sequelizeConfig);
   }
 
