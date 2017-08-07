@@ -6,4 +6,4 @@ process.argv.shift();
 
 // console.log(process.argv);
 slaClock.ctl(process.argv).subscribe(console.log, console.error);
-//slaClock.ctl(['--help']).subscribe(console.log, console.error);
+// slaClock.ctl(['--help']).subscribe(console.log, console.error);

@@ -8,6 +8,8 @@ import * as uuid from 'uuid';
 import * as yargs from 'yargs';
 import * as fs from 'fs';
 
+import collector from './sla-collector';
+
 /*
  *
  * sla-clock list
@@ -31,6 +33,8 @@ export class Entry extends Model<Entry> {
   @PrimaryKey
   @Column(DataType.UUID)
   public id: string;
+  @Column(DataType.STRING)
+  public method: string;
   @Column(DataType.STRING)
   public url: string;
   @Column(DataType.FLOAT)
@@ -152,7 +156,7 @@ function buildSequelizeConfig(argv: any): any {
   };
 }
 
-function dbConnect(argv: any): Rx.Observable<Sequelize> {
+export function dbConnect(argv: any): Rx.Observable<Sequelize> {
   return dbConnection(argv.sequelizeMasterDbname,
     argv.sequelizeDbname, buildSequelizeConfig(argv));
 }
@@ -277,6 +281,10 @@ function entryOptions(): any {
       describe: 'url to observe',
       required: true
     },
+    method: {
+      describe: 'method request',
+      default: 'GET'
+    },
     freq: {
       describe: 'frequence of the observation',
       default: 1
@@ -297,6 +305,7 @@ function entryOptions(): any {
 function entryFrom(argv: any, ret: Entry = new Entry()): Entry {
   ret.id = argv.id || null;
   ret.url = argv.url;
+  ret.method = argv.method;
   ret.freq = argv.freq;
   ret.timeout = argv.timeout;
   ret.clientkey = (argv.clientkey && fs.readFileSync(argv.clientkey).toString()) || null;
@@ -373,6 +382,15 @@ function updateCommand(_yargs: any, observer: Rx.Observer<string>): any {
     });
 }
 
+function collectorCommand(_yargs: any): any {
+  return _yargs.command('collector', 'collector command', {
+      'updateFreq': {
+        describe: 'update from sql',
+        default: 0.0001
+      }
+    }, collector);
+}
+
 export function ctl(args: string[]): Rx.Observable<string> {
   return Rx.Observable.create((observer: Rx.Observer<string>) => {
     let y = yargs.usage('$0 <cmd> [args]');
@@ -382,6 +400,7 @@ export function ctl(args: string[]): Rx.Observable<string> {
     y = addCommand(y, observer);
     y = updateCommand(y, observer);
     y = delCommand(y, observer);
+    y = collectorCommand(y);
     y.help().parse(args);
   });
 }

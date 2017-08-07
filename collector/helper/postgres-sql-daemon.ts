@@ -2,7 +2,6 @@ import * as Rx from 'rxjs';
 import * as RxExec from 'rxjs-exec';
 import * as crypto from 'crypto';
 import * as cp from 'child_process';
-import * as pg from 'pg';
 import { Sequelize } from 'sequelize-typescript';
 
 const PGTOOLS = '';
