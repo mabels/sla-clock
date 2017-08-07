@@ -23,11 +23,13 @@ interface ReadyCB {
 export class PostgresSqlDaemon {
   public readyQ: ReadyCB[] = [];
   public cdb: Cdb = null;
+
   public static start(): PostgresSqlDaemon {
     const ret = new PostgresSqlDaemon();
     ret.createDb('pg').subscribe(null, null, () => true);
     return ret;
   }
+
   public ready(cb?: ReadyCB): void {
     if (cb) {
       this.readyQ.push(cb);
@@ -38,6 +40,7 @@ export class PostgresSqlDaemon {
       q.forEach(i => i(this.cdb));
     }
   }
+
   public createDb(dbName: string): Rx.Observable<Cdb> {
     const random = Math.random();
     const mac = crypto.createHmac('sha1', `${dbName}:${random}`).digest('hex');
@@ -61,18 +64,15 @@ export class PostgresSqlDaemon {
     });
   }
 
-  public sequelize(dbName?: string): Sequelize {
-    const sequelizeConfig = {
+  public sequelizeConfig(): any {
+    return {
       dialect: 'postgres',
       host: '/tmp',
       port: this.cdb.port,
-      name: (dbName && dbName.toLowerCase()) || 'postgres',
       username: 'postgres',
       password: '',
       logging: false
     };
-    // console.log('sequelize', sequelizeConfig);
-    return new Sequelize(sequelizeConfig);
   }
 
   // public connect(dbName?: string): Rx.Observable<pg.Client> {

@@ -55,6 +55,7 @@
     "@types/sequelize": "^4.0.67",
     "@types/uuid": "^3.4.0",
     "@types/winston": ">=0.0.32",
+    "@types/yargs": "^8.0.2",
     "fs-extra": ">=3.0.1",
     "node-uuid": ">=1.4.7",
     "pg": "^7.0.2",
@@ -64,7 +65,8 @@
     "rxjs-exec": "^0.4.1",
     "sequelize": "^4.4.2",
     "sequelize-typescript": "^0.3.5",
-    "winston": ">=2.2.0"
+    "winston": ">=2.2.0",
+    "yargs": "^8.0.2"
   },
   "publishConfig": {
     "tag": "next"
