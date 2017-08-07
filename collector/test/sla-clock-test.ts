@@ -31,12 +31,56 @@ function addSequelize(dbName: string, option: string[]): string[] {
   return ret;
 }
 
+function add(sc: slaClock.SlaClock, done: any): void {
+  const my: slaClock.Entry[] = [];
+  const entrieses: Rx.Observable<Entries>[] = [];
+  const createLen = 10;
+  for (let i = 0; i < createLen; ++i) {
+    const entry = new slaClock.Entry();
+    entry.url = 'url' + i;
+    entry.freq = i / 10;
+    entry.timeout = 1000 + i;
+    entry.clientkey = 'clientkey' + i;
+    entry.clientcert = 'clientcert' + i;
+    my.push(entry);
+    const entries = new Entries();
+    entries.entries = my;
+    entries.idx = i;
+    entries.entry = entry;
+    entrieses.push(Rx.Observable.create((observer: Rx.Observer<Entries>) => {
+      // console.log(entry.url);
+      sc.add(entry).subscribe((e: slaClock.Entry) => {
+        assert.isTrue(entry.id.length > 0);
+        assert.equal(entry.url, e.url);
+        assert.equal(entry.freq, e.freq);
+        assert.equal(entry.timeout, e.timeout);
+        assert.equal(entry.clientcert, e.clientcert);
+        assert.equal(entry.clientkey, e.clientkey);
+        entries.entries[entries.idx] = e;
+        sc.list().subscribe((lst: slaClock.Entry[]) => {
+          // console.log(e.toJSON(), lst.map((a) => a.toJSON()));
+          assert.deepEqual(lst.map((a) => a.toJSON()),
+            entries.entries.slice(0, entries.idx + 1).map((a) => a.toJSON()));
+          observer.complete();
+        });
+      });
+    }));
+  }
+  Rx.Observable.concat.apply(Rx.Observable.concat, entrieses).subscribe(null, null, () => {
+    sc.list().subscribe((lst: slaClock.Entry[]) => {
+      assert.isTrue(lst.length == createLen);
+      done();
+    });
+  });
+}
+
 describe('sla-clock', () => {
   before(function (done: MochaDone): void {
     this.timeout(30000);
     console.log('Before:');
     (global as any).postgresSql.ready(() => done());
   });
+
   it('list-empty', (done) => {
     PgMyDb('listEmpty').subscribe((sql: SeqType.Sequelize) => {
       const sc = new slaClock.SlaClock(sql);
@@ -46,48 +90,7 @@ describe('sla-clock', () => {
       });
     });
   });
-  function add(sc: slaClock.SlaClock, done: any): void {
-    const my: slaClock.Entry[] = [];
-    const entrieses: Rx.Observable<Entries>[] = [];
-    const createLen = 10;
-    for (let i = 0; i < createLen; ++i) {
-      const entry = new slaClock.Entry();
-      entry.url = 'url' + i;
-      entry.freq = i / 10;
-      entry.timeout = 1000 + i;
-      entry.clientkey = 'clientkey' + i;
-      entry.clientcert = 'clientcert' + i;
-      my.push(entry);
-      const entries = new Entries();
-      entries.entries = my;
-      entries.idx = i;
-      entries.entry = entry;
-      entrieses.push(Rx.Observable.create((observer: Rx.Observer<Entries>) => {
-        // console.log(entry.url);
-        sc.add(entry).subscribe((e: slaClock.Entry) => {
-          assert.isTrue(entry.id.length > 0);
-          assert.equal(entry.url, e.url);
-          assert.equal(entry.freq, e.freq);
-          assert.equal(entry.timeout, e.timeout);
-          assert.equal(entry.clientcert, e.clientcert);
-          assert.equal(entry.clientkey, e.clientkey);
-          entries.entries[entries.idx] = e;
-          sc.list().subscribe((lst: slaClock.Entry[]) => {
-            // console.log(e.toJSON(), lst.map((a) => a.toJSON()));
-            assert.deepEqual(lst.map((a) => a.toJSON()),
-              entries.entries.slice(0, entries.idx + 1).map((a) => a.toJSON()));
-            observer.complete();
-          });
-        });
-      }));
-    }
-    Rx.Observable.concat.apply(Rx.Observable.concat, entrieses).subscribe(null, null, () => {
-      sc.list().subscribe((lst: slaClock.Entry[]) => {
-        assert.isTrue(lst.length == createLen);
-        done();
-      });
-    });
-  }
+
   it('add', (done) => {
     PgMyDb('addAndList').subscribe((sql: SeqType.Sequelize) => {
       add(new slaClock.SlaClock(sql), done);
@@ -175,11 +178,11 @@ describe('sla-clock', () => {
     });
   });
 
-  it('ctl-update-list', (done) => {
-    slaClock.ctl(addSequelize('ctlupdatelist', ['add', '--json', '--url', 'add://url'])).subscribe((added) => {
+  it('ctl-add-update', (done) => {
+    slaClock.ctl(addSequelize('ctladdupdate', ['add', '--json', '--url', 'add://url'])).subscribe((added) => {
       const oadded = JSON.parse(added);
       oadded[0].url = 'update';
-      slaClock.ctl(addSequelize('ctlupdatelist', ['update', '--json',
+      slaClock.ctl(addSequelize('ctladdupdate', ['update', '--json',
         '--url', oadded[0].url, '--id', JSON.parse(added)[0].id]))
         .subscribe((updated) => {
           assert.equal(oadded[0].id, JSON.parse(updated)[0].id);
