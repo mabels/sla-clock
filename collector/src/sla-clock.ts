@@ -51,6 +51,13 @@ export class Entry extends Model<Entry> {
   public updatedOn: Date;
   @DeletedAt
   public deletionDate: Date;
+
+  public compare(oth: Entry): boolean {
+    return [this.id, this.method, this.url, this.freq,
+            this.timeout, this.clientkey, this.clientcert].join(':') ==
+           [oth.id, oth.method, oth.url, oth.freq,
+            oth.timeout, oth.clientkey, oth.clientcert].join(':');
+  }
 }
 
 export function dbConnection(masterDbName: string, dbName: string, cfg: any): Rx.Observable<Sequelize> {
@@ -88,7 +95,6 @@ export class SlaClock {
   public close(): void {
     this.sequelize.close();
   }
-
 
   public list(): Rx.Observable<Entry[]> {
     return Rx.Observable.create((observer: Rx.Observer<Entry[]>) => {
@@ -394,6 +400,10 @@ function collectorCommand(_yargs: any): any {
 export function ctl(args: string[]): Rx.Observable<string> {
   return Rx.Observable.create((observer: Rx.Observer<string>) => {
     let y = yargs.usage('$0 <cmd> [args]');
+    y.option('logLevel', {
+      describe: 'logLevel ala winston',
+      default: 'info'
+    });
     y = sequelizeOptions(y);
     y = jsonOrText(y);
     y = listCommand(y, observer);
