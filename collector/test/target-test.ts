@@ -11,35 +11,12 @@ import { Target } from '../src/target';
 import * as cliHelper from '../src/cli-helper';
 
 import * as PostgresSqlDaemon from '../helper/postgres-sql-daemon';
-
-const logger = new winston.Logger({
-  level: 'info',
-  transports: [
-    new (winston.transports.Console)(),
-  ]
-});
+import { PgMyDb, addSequelize } from './test-helper';
 
 class Entries {
   public idx: number;
   public entries: Target[];
   public entry: Target;
-}
-
-function PgMyDb(dbName: string): Rx.Observable<SeqType.Sequelize> {
-  return cliHelper.dbConnection('postgres', dbName,
-    (global as any).postgresSql.sequelizeConfig());
-}
-
-function addSequelize(dbName: string, option: string[]): string[] {
-  const sqc = (global as any).postgresSql.sequelizeConfig();
-  const ret = [
-    '--sequelize-dialect', 'postgres',
-    '--sequelize-host', '/tmp',
-    '--sequelize-port', '' + sqc.port,
-    '--sequelize-dbname', dbName
-  ].concat(option);
-  // console.log(ret);
-  return ret;
 }
 
 function add(sc: slaClock.Api, done: any): void {
@@ -88,7 +65,6 @@ function add(sc: slaClock.Api, done: any): void {
 describe('target', () => {
   before(function (done: MochaDone): void {
     this.timeout(30000);
-    console.log('Before:');
     (global as any).postgresSql.ready(() => done());
   });
 

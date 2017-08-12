@@ -14,6 +14,9 @@ export class Target extends Model<Target> {
   @PrimaryKey
   @Column(DataType.UUID)
   public id: string;
+  @PrimaryKey
+  @Column(DataType.INTEGER)
+  public seq: number;
   @Column(DataType.STRING)
   public method: string;
   @Column(DataType.STRING)
@@ -50,21 +53,50 @@ export class Api {
   }
 
   public list(): Rx.Observable<Target[]> {
+    // console.log('XXXX', Target.name);
     return Rx.Observable.create((observer: Rx.Observer<Target[]>) => {
       Target.sync().then(() => {
-        Target.findAll().then((lst: Target[]) => {
+        Target.findAll({
+          include: [{
+            model: Target,
+            as: 'TargetIds',
+            attributes: [
+              [Sequelize.fn('max', Sequelize.col('seq')), 'seq']
+            ],
+            group: ['id'],
+            association: {
+              source: Target,
+              target: Target,
+              identifier: 'maxTarget'
+            }
+          }]
+        }).then((lst: Target[]) => {
           observer.next(lst);
+          observer.complete();
+        }).catch((e) => {
+          observer.error(e);
           observer.complete();
         });
       });
     });
   }
 
-  public get(id: string): Rx.Observable<Target> {
+  public get(id: string, options: any = {}): Rx.Observable<Target> {
     return Rx.Observable.create((observer: Rx.Observer<Target>) => {
       Target.sync().then(() => {
-        Target.findById(id).then((value: Target) => {
-          observer.next(value);
+        Target.findAll(Object.assign({
+          where: {
+            id: id
+          },
+          order: [
+            ['seq', 'DESC']
+          ],
+          limit: 1
+        }, options)).then((value: Target[]) => {
+          observer.next(value[0]);
+          observer.complete();
+        }).catch((e) => {
+          observer.error(e);
           observer.complete();
         });
       });
@@ -79,9 +111,44 @@ export class Api {
   public update(e: Target): Rx.Observable<Target> {
     return Rx.Observable.create((observer: Rx.Observer<Target>) => {
       Target.sync().then(() => {
-        e.save().then((value: Target) => {
-          observer.next(value);
-          observer.complete();
+        // looks not so nice
+        this.slaClock.sequelize.transaction((t) => {
+          return new Promise((resolve, reject) => {
+            this.get(e.id, {
+              transaction: t,
+              lock: t.LOCK.UPDATE
+            }).subscribe((val: Target) => {
+              let newTarget: any = null;
+              if (val) {
+                newTarget = (Object.assign(val.toJSON(),
+                  Object.assign(e.toJSON(), {
+                  seq: val.seq + 1
+                })));
+                // console.log('val.length:', newTarget);
+              } else {
+                newTarget = (Object.assign(e.toJSON(), {
+                  seq: 0
+                }));
+                // console.log('init:', newTarget);
+              }
+              Target.create(newTarget, { transaction: t }).then((value: Target) => {
+                // t.commit();
+                observer.next(value);
+                observer.complete();
+                resolve();
+              }).catch((err: any) => {
+                // t.rollback();
+                observer.error(err);
+                observer.complete();
+                reject();
+              });
+            }, (err: any) => {
+              // t.rollback();
+              observer.error(err);
+              observer.complete();
+              reject();
+            });
+          });
         });
       });
     });
@@ -90,13 +157,16 @@ export class Api {
   public delete(id: string): Rx.Observable<Target> {
     return Rx.Observable.create((observer: Rx.Observer<Target>) => {
       Target.sync().then(() => {
-        Target.findById(id).then((value: Target) => {
+        this.get(id).subscribe((value: Target) => {
           Target.destroy({
             where: { id: id }
           }).then((count: number) => {
             observer.next(value);
             observer.complete();
           });
+        }, (err) => {
+          observer.error(err);
+          observer.complete();
         });
       });
     });
@@ -146,13 +216,22 @@ export class Cli {
 
   private static listCommand(_yargs: any, observer: Rx.Observer<string>): any {
     return _yargs.command('list', 'list registered urls to test',
-      {},
+      {
+        'all': {
+          describe: 'show all',
+          default: false
+        }
+      },
       (argv: any) => {
         dbConnect(argv).subscribe((sql: Sequelize) => {
           const sc = new slaClock.Api(sql);
           sc.target.list().subscribe((lst: Target[]) => {
             output(argv, lst).forEach((a) => observer.next(a));
             sc.close();
+            observer.complete();
+          }, (e) => {
+            sc.close();
+            observer.error(e);
             observer.complete();
           });
         });
@@ -167,6 +246,10 @@ export class Cli {
           const sc = new slaClock.Api(sql);
           sc.target.add(Cli.targetFrom(argv)).subscribe((e: Target) => {
             output(argv, [e]).forEach((a) => observer.next(a));
+            sc.close();
+            observer.complete();
+          }, (err) => {
+            observer.error(err);
             sc.close();
             observer.complete();
           });
@@ -192,6 +275,10 @@ export class Cli {
               return;
             }
             output(argv, [e]).forEach((a) => observer.next(a));
+            sc.close();
+            observer.complete();
+          }, (err) => {
+            observer.error(err);
             sc.close();
             observer.complete();
           });
@@ -222,6 +309,10 @@ export class Cli {
               sc.close();
               observer.complete();
             });
+          }, (err) => {
+            observer.error(err);
+            sc.close();
+            observer.complete();
           });
         });
       });

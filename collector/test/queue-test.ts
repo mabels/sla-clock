@@ -2,13 +2,7 @@ import { assert } from 'chai';
 import * as queue from '../src/queue';
 import * as winston from 'winston';
 import * as Rx from 'rxjs';
-
-const logger = new winston.Logger({
-  level: 'info',
-  transports: [
-    new (winston.transports.Console)(),
-  ]
-});
+import { logger } from './test-helper';
 
 describe('queue', () => {
 
