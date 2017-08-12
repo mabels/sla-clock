@@ -52,25 +52,18 @@ export class Api {
     this.slaClock.sequelize.addModels([Target]);
   }
 
-  public list(): Rx.Observable<Target[]> {
+  public list(all = false): Rx.Observable<Target[]> {
     // console.log('XXXX', Target.name);
     return Rx.Observable.create((observer: Rx.Observer<Target[]>) => {
       Target.sync().then(() => {
         Target.findAll({
-          include: [{
-            model: Target,
-            as: 'TargetIds',
-            attributes: [
-              [Sequelize.fn('max', Sequelize.col('seq')), 'seq']
-            ],
-            group: ['id'],
-            association: {
-              source: Target,
-              target: Target,
-              identifier: 'maxTarget'
-            }
-          }]
+          order: ['id', ['seq', 'DESC']]
         }).then((lst: Target[]) => {
+          if (!all) {
+            lst = lst.filter((v: Target, idx: number) => {
+              return !(idx > 0 && v.id == lst[idx - 1].id);
+            });
+          }
           observer.next(lst);
           observer.complete();
         }).catch((e) => {
@@ -225,7 +218,7 @@ export class Cli {
       (argv: any) => {
         dbConnect(argv).subscribe((sql: Sequelize) => {
           const sc = new slaClock.Api(sql);
-          sc.target.list().subscribe((lst: Target[]) => {
+          sc.target.list(argv.all).subscribe((lst: Target[]) => {
             output(argv, lst).forEach((a) => observer.next(a));
             sc.close();
             observer.complete();

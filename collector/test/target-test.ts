@@ -45,10 +45,19 @@ function add(sc: slaClock.Api, done: any): void {
         assert.equal(entry.clientcert, e.clientcert);
         assert.equal(entry.clientkey, e.clientkey);
         entries.entries[entries.idx] = e;
+        entries.entries = entries.entries.sort((a, b) => {
+          if (a.id < b.id) { return -1; }
+          if (a.id > b.id) { return 1; }
+          return 0;
+        });
         sc.target.list().subscribe((lst: Target[]) => {
-          // console.log(e.toJSON(), lst.map((a) => a.toJSON()));
-          assert.deepEqual(lst.map((a) => a.toJSON()),
-            entries.entries.slice(0, entries.idx + 1).map((a) => a.toJSON()));
+          try {
+            // console.log(lst.map(a => a.id));
+            assert.deepEqual(lst.map((a) => a.toJSON()),
+              entries.entries.slice(0, entries.idx + 1).map((a) => a.toJSON()));
+          } catch (e) {
+            console.error(e);
+          }
           observer.complete();
         });
       });
