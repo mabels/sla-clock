@@ -7,14 +7,6 @@ export enum State {
   ERROR
 }
 
-export interface Entry {
-  state: State;
-  startTime: Date;
-  entry: slaClock.Entry;
-  error?: any;
-  response?: any;
-}
-
 export class QEntry<T> {
   public created: Date;
   public running: Date;
@@ -87,11 +79,11 @@ export class Queue<T> {
     });
   }
 
-  private action(qe: QEntry<Entry>): void {
+  private action(qe: QEntry<T>): void {
     this.logger.debug('action:', qe);
     qe.running = new Date();
     ++qe.executeCnt;
-    qe.task.subscribe((_qe: QEntry<Entry>) => {
+    qe.task.subscribe((_qe: QEntry<T>) => {
       qe.running = null;
       qe.completed = new Date();
       this.logger.debug('action:completed:', qe);

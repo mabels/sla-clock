@@ -4,6 +4,9 @@ import * as uuid from 'uuid';
 import * as winston from 'winston';
 import * as requestPromise from 'request-promise';
 import * as queue from './queue';
+import { Target } from './target';
+import { Log, QEntry } from './log';
+import { dbConnect } from './cli-helper';
 
 const logger = new winston.Logger({
   level: 'debug',
@@ -12,9 +15,9 @@ const logger = new winston.Logger({
   ]
 });
 
-function dbCollector(argv: any): Rx.Observable<slaClock.Entry[]> {
+function dbCollector(argv: any): Rx.Observable<Target[]> {
   // console.log(argv.sequelizeMasterDbname);
-  return Rx.Observable.create((observer: Rx.Observer<slaClock.Entry[]>) => {
+  return Rx.Observable.create((observer: Rx.Observer<Target[]>) => {
     logger.info('dbCollector frequence:', argv.updateFreq,
       ' dbCollector dbname:', argv.sequelizeDbname);
     Rx.Observable.create((interval: Rx.Observer<void>) => {
@@ -24,9 +27,9 @@ function dbCollector(argv: any): Rx.Observable<slaClock.Entry[]> {
       }, 1 / argv.updateFreq);
     }).subscribe(() => {
       logger.debug('dbCollector: tick');
-      slaClock.dbConnect(argv).subscribe((sql) => {
-        const sc = new slaClock.SlaClock(sql);
-        sc.list().subscribe((lst) => {
+      dbConnect(argv).subscribe((sql) => {
+        const sc = new slaClock.Api(sql);
+        sc.target.list().subscribe((lst) => {
           observer.next(lst);
           sc.close();
         });
@@ -35,26 +38,35 @@ function dbCollector(argv: any): Rx.Observable<slaClock.Entry[]> {
   });
 }
 
-interface SlaQEntry {
-  state: queue.State;
-  startTime: Date;
-  entry: slaClock.Entry;
-  response?: any;
-  error?: any;
-}
-
-function action(entry: SlaQEntry): Rx.Observable<queue.QEntry<SlaQEntry>> {
-  return Rx.Observable.create((observer: Rx.Observer<SlaQEntry>) => {
-    return;
+function action(entry: QEntry): Rx.Observable<queue.QEntry<Log>> {
+  return Rx.Observable.create((observer: Rx.Observer<Log>) => {
+    // dbConnect(argv).subscribe((sql: Sequelize) => {
+    //   const sc = new slaClock.SlaClock(sql);
+    //   sc.add().subscribe((lst: Entry[]) => {
+    //     output(argv, lst).forEach((a) => observer.next(a));
+    //     sc.close();
+    //     observer.complete();
+    //   });
+    // });
+    // slaClock.Log.sync().then(() => {
+    //   slaClock.Log.qentry(entry).save()
+    //     .then((lentry: slaClock.Log) => {
+    //       observer.next(lentry);
+    //       observer.complete();
+    //     })
+    //     .catch(() => {
+    //       observer.error(null);
+    //     });
+    // });
   });
 }
 
 class Started {
-  public entry: slaClock.Entry;
+  public entry: Target;
   public running: boolean;
   public transaction: string;
   public collector: Rx.Observable<Date>;
-  public queue: queue.Queue<SlaQEntry>;
+  public queue: queue.Queue<QEntry>;
 
   public stop(): Rx.Observable<Started> {
     return Rx.Observable.create((observer: Rx.Observer<Started>) => {
@@ -65,7 +77,7 @@ class Started {
       this.running = false;
     });
   }
-  public restart(entry: slaClock.Entry): void {
+  public restart(entry: Target): void {
     this.entry = entry;
   }
 
@@ -127,7 +139,7 @@ export function starter(argv: any): void {
   logger.level = argv.logLevel;
   const running = new Map<string, Started>();
   const q = queue.start(logger, argv);
-  dbCollector(argv).subscribe((lst: slaClock.Entry[]) => {
+  dbCollector(argv).subscribe((lst: Target[]) => {
     const transaction = uuid.v4();
     lst.forEach((e) => {
       if (running.has(e.id) && running.get(e.id).entry.compare(e)) {
@@ -158,4 +170,15 @@ export function starter(argv: any): void {
   });
 }
 
-export default starter;
+export class Cli {
+  public static command(_yargs: any): any {
+    return _yargs.command('collector', 'collector command', {
+        'updateFreq': {
+          describe: 'update from sql',
+          default: 0.0001
+        }
+      }, starter);
+  }
+}
+
+// export default starter;
