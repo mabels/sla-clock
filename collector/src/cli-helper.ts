@@ -1,7 +1,4 @@
-import {
-  Table, Column, Model, HasMany, CreatedAt, IsUUID,
-  UpdatedAt, DeletedAt, Sequelize, DataType, PrimaryKey,
-} from 'sequelize-typescript';
+import { Sequelize, Model } from 'sequelize-typescript';
 import * as Rx from 'rxjs';
 
 function buildSequelizeConfig(argv: any): any {
@@ -125,7 +122,12 @@ function textOutput<T extends Model<T>>(argv: any, elst: T[]): string[] {
   lst.forEach(e => {
     let line: string[] = [];
     for (let k in e) {
-      const v = '' + e[k];
+      let v: string;
+      if (e[k] instanceof Date) {
+        v = e[k].toISOString();
+      } else {
+        v = '' + e[k];
+      }
       // console.log(e, k, v);
       line.push(v + (new Array(cols.get(k) - (v.length - 1)).join(' ')));
     }

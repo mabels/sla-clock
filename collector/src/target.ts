@@ -1,5 +1,5 @@
 import {
-  Table, Column, Model, HasMany, CreatedAt, IsUUID,
+  Table, Column, Model, CreatedAt, IsUUID,
   UpdatedAt, DeletedAt, Sequelize, DataType, PrimaryKey,
 } from 'sequelize-typescript';
 import * as uuid from 'uuid';

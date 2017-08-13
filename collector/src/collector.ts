@@ -4,12 +4,13 @@ import * as uuid from 'uuid';
 import * as winston from 'winston';
 import * as requestPromise from 'request-promise';
 import * as queue from './queue';
+import { Sequelize } from 'sequelize-typescript';
 import { Target } from './target';
-import { Log, QEntry } from './log';
+import { Log, QEntry, Api } from './log';
 import { dbConnect } from './cli-helper';
 
 const logger = new winston.Logger({
-  level: 'debug',
+  level: 'info',
   transports: [
     new (winston.transports.Console)(),
   ]
@@ -38,35 +39,39 @@ function dbCollector(argv: any): Rx.Observable<Target[]> {
   });
 }
 
-function action(entry: QEntry): Rx.Observable<queue.QEntry<Log>> {
-  return Rx.Observable.create((observer: Rx.Observer<Log>) => {
-    // dbConnect(argv).subscribe((sql: Sequelize) => {
-    //   const sc = new slaClock.SlaClock(sql);
-    //   sc.add().subscribe((lst: Entry[]) => {
-    //     output(argv, lst).forEach((a) => observer.next(a));
-    //     sc.close();
-    //     observer.complete();
-    //   });
-    // });
-    // slaClock.Log.sync().then(() => {
-    //   slaClock.Log.qentry(entry).save()
-    //     .then((lentry: slaClock.Log) => {
-    //       observer.next(lentry);
-    //       observer.complete();
-    //     })
-    //     .catch(() => {
-    //       observer.error(null);
-    //     });
-    // });
-  });
-}
-
 class Started {
   public entry: Target;
   public running: boolean;
   public transaction: string;
   public collector: Rx.Observable<Date>;
   public queue: queue.Queue<QEntry>;
+  public argv: string[];
+
+  constructor(argv: string[]) {
+    this.argv = argv;
+  }
+
+  public action(entry: QEntry): Rx.Observable<queue.QEntry<Log>> {
+    return Rx.Observable.create((observer: Rx.Observer<Log>) => {
+      dbConnect(this.argv).subscribe((sql: Sequelize) => {
+        const sc = new slaClock.Api(sql);
+        // console.log(entry);
+        Log.sync().then(() => {
+          Api.qentry(entry).save()
+            .then((lentry: Log) => {
+              sc.close();
+              observer.next(lentry);
+              observer.complete();
+            })
+            .catch((err) => {
+              sc.close();
+              observer.error(err);
+              observer.complete();
+            });
+        });
+      });
+    });
+  }
 
   public stop(): Rx.Observable<Started> {
     return Rx.Observable.create((observer: Rx.Observer<Started>) => {
@@ -77,6 +82,7 @@ class Started {
       this.running = false;
     });
   }
+
   public restart(entry: Target): void {
     this.entry = entry;
   }
@@ -115,15 +121,15 @@ class Started {
     this.collector.subscribe((tickTime: Date) => {
       this.request().subscribe((a) => {
         logger.debug('request:OK:', a.statusCode, a.elapsedTime);
-        this.queue.push(action({
+        this.queue.push(this.action({
           state: queue.State.OK,
           startTime: tickTime,
           entry: this.entry,
           response: a
         }));
       }, (error) => {
-        logger.debug('request:ERROR:');
-        this.queue.push(action({
+        logger.debug('request:ERROR:', error.name, error.message);
+        this.queue.push(this.action({
           state: queue.State.ERROR,
           startTime: tickTime,
           entry: this.entry,
@@ -134,50 +140,51 @@ class Started {
   }
 }
 
-export function starter(argv: any): void {
-  logger.info('starting collector: loglevel', argv.logLevel);
-  logger.level = argv.logLevel;
-  const running = new Map<string, Started>();
-  const q = queue.start(logger, argv);
-  dbCollector(argv).subscribe((lst: Target[]) => {
-    const transaction = uuid.v4();
-    lst.forEach((e) => {
-      if (running.has(e.id) && running.get(e.id).entry.compare(e)) {
-        // nothing changed
-      } else if (!running.has(e.id)) {
-        // new
-        const started = new Started();
-        started.queue = q;
-        started.entry = e;
-        started.start();
-        running.set(e.id, started);
-      } else {
-        // changed
-        running.get(e.id).entry = e;
-        logger.info('change clock:', e.id);
-      }
-      running.get(e.id).transaction = transaction;
-      logger.info(e.url, running.get(e.id).entry.url, running.get(e.id).entry.compare(e));
-    });
-    running.forEach((e) => {
-      if (e.transaction != transaction && e.running) {
-        e.stop().subscribe((s) => {
-          logger.info('stop clock:', s.entry.id);
-          running.delete(s.entry.id);
-        });
-      }
-    });
-  });
-}
-
 export class Cli {
+
+  private static action(argv: any): void {
+    logger.info('starting collector: loglevel', argv.logLevel);
+    logger.level = argv.logLevel;
+    const running = new Map<string, Started>();
+    const q = queue.start(logger, argv);
+    dbCollector(argv).subscribe((lst: Target[]) => {
+      const transaction = uuid.v4();
+      lst.forEach((e) => {
+        if (running.has(e.id) && running.get(e.id).entry.compare(e)) {
+          // nothing changed
+        } else if (!running.has(e.id)) {
+          // new
+          const started = new Started(argv);
+          started.queue = q;
+          started.entry = e;
+          started.start();
+          running.set(e.id, started);
+        } else {
+          // changed
+          running.get(e.id).entry = e;
+          logger.info('change clock:', e.id);
+        }
+        running.get(e.id).transaction = transaction;
+        // logger.info(e.url, running.get(e.id).entry.url, running.get(e.id).entry.compare(e));
+      });
+      running.forEach((e) => {
+        if (e.transaction != transaction && e.running) {
+          e.stop().subscribe((s) => {
+            logger.info('stop clock:', s.entry.id);
+            running.delete(s.entry.id);
+          });
+        }
+      });
+    });
+  }
+
   public static command(_yargs: any): any {
     return _yargs.command('collector', 'collector command', {
-        'updateFreq': {
-          describe: 'update from sql',
-          default: 0.0001
-        }
-      }, starter);
+      'updateFreq': {
+        describe: 'update from sql',
+        default: 0.0001
+      }
+    }, Cli.action);
   }
 }
 

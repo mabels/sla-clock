@@ -9,7 +9,7 @@ global.logger = new winston.Logger({
   ]
 });
 
-const myTest = require('../dist/helper/postgres-sql-daemon');
+const myTest = require('../dist/test/pg-helper');
 console.log('Starting: postgresql');
 global.postgresSql = myTest.PostgresSqlDaemon.start()
 

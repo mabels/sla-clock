@@ -1,6 +1,5 @@
 import { assert } from 'chai';
 import * as queue from '../src/queue';
-import * as winston from 'winston';
 import * as Rx from 'rxjs';
 import { logger } from './test-helper';
 

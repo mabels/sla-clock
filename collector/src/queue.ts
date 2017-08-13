@@ -1,11 +1,10 @@
-import * as slaClock from './sla-clock';
 import * as Rx from 'rxjs';
 import * as winston from 'winston';
 
-export enum State {
-  OK,
-  ERROR
-}
+export const State = {
+  OK: 'OK',
+  ERROR: 'ERROR'
+};
 
 export class QEntry<T> {
   public created: Date;

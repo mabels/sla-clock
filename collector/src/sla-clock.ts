@@ -1,15 +1,8 @@
-import {
-  Table, Column, Model, HasMany, CreatedAt, IsUUID,
-  UpdatedAt, DeletedAt, Sequelize, DataType, PrimaryKey,
-} from 'sequelize-typescript';
+import { Sequelize } from 'sequelize-typescript';
 
 import * as Rx from 'rxjs';
-import * as uuid from 'uuid';
 import * as yargs from 'yargs';
 
-import * as Bluebird from 'bluebird';
-
-import * as queue from './queue';
 import * as collector from './collector';
 import * as target from './target';
 import * as log from './log';
@@ -31,9 +24,6 @@ import * as cliHelper from './cli-helper';
  * sla-clock del sha
  *
  */
-
-
-
 export class Api {
   public sequelize: Sequelize;
   public log: log.Api;

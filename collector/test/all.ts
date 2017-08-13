@@ -1,1 +1,0 @@
-import './sla-clock-test';

@@ -1,16 +1,10 @@
 // import winston from 'winston';
 import * as Rx from 'rxjs';
-import * as RxExec from 'rxjs-exec';
-import * as crypto from 'crypto';
 import * as slaClock from '../src/sla-clock';
 import * as SeqType from 'sequelize-typescript';
-import * as winston from 'winston';
-import * as queue from '../src/queue';
 import { assert } from 'chai';
 import { Target } from '../src/target';
-import * as cliHelper from '../src/cli-helper';
 
-import * as PostgresSqlDaemon from '../helper/postgres-sql-daemon';
 import { PgMyDb, addSequelize } from './test-helper';
 
 class Entries {
@@ -78,7 +72,7 @@ describe('target', () => {
   });
 
   it('list-empty', (done) => {
-    PgMyDb('listEmpty').subscribe((sql: SeqType.Sequelize) => {
+    PgMyDb('targetListEmpty').subscribe((sql: SeqType.Sequelize) => {
       const sc = new slaClock.Api(sql);
       sc.target.list().subscribe((lst: Target[]) => {
         assert.deepEqual([], lst);
@@ -88,13 +82,13 @@ describe('target', () => {
   });
 
   it('add', (done) => {
-    PgMyDb('addAndList').subscribe((sql: SeqType.Sequelize) => {
+    PgMyDb('targetAddAndList').subscribe((sql: SeqType.Sequelize) => {
       add(new slaClock.Api(sql), done);
     });
   });
 
   it('update', (done) => {
-    PgMyDb('update').subscribe((sql: SeqType.Sequelize) => {
+    PgMyDb('targetUpdate').subscribe((sql: SeqType.Sequelize) => {
       const sc = new slaClock.Api(sql);
       add(sc, () => {
         sc.target.list().subscribe((lst: Target[]) => {
@@ -126,7 +120,7 @@ describe('target', () => {
   });
 
   it('delete', (done) => {
-    PgMyDb('delete').subscribe((sql: SeqType.Sequelize) => {
+    PgMyDb('targetDelete').subscribe((sql: SeqType.Sequelize) => {
       const sc = new slaClock.Api(sql);
       add(sc, () => {
         sc.target.list().subscribe((lst: Target[]) => {
@@ -150,9 +144,9 @@ describe('target', () => {
   });
 
   it('ctl-list-empty', (done) => {
-    slaClock.cli(addSequelize('ctllistempty', ['target', 'list'])).subscribe((a) => {
+    slaClock.cli(addSequelize('targetctllistempty', ['target', 'list'])).subscribe((a) => {
       assert.equal('', a);
-      slaClock.cli(addSequelize('ctllistempty', ['target', 'list', '--json']))
+      slaClock.cli(addSequelize('targetctllistempty', ['target', 'list', '--json']))
         .subscribe((b) => {
           assert.equal('[]', b);
           done();
@@ -161,10 +155,11 @@ describe('target', () => {
   });
 
   it('ctl-add-list', (done) => {
-    slaClock.cli(addSequelize('ctladdlist', ['target', 'add', '--json', '--url', 'add://url'])).subscribe((added) => {
-      slaClock.cli(addSequelize('ctladdlist', ['target', 'list', '--json'])).subscribe((lst) => {
+    slaClock.cli(addSequelize('targetctladdlist', ['target', 'add', '--json',
+      '--url', 'add://url'])).subscribe((added) => {
+      slaClock.cli(addSequelize('targetctladdlist', ['target', 'list', '--json'])).subscribe((lst) => {
         assert.deepEqual(JSON.parse(added), JSON.parse(lst));
-        slaClock.cli(addSequelize('ctladdlist', ['target', 'list', '--text'])).
+        slaClock.cli(addSequelize('targetctladdlist', ['target', 'list', '--text'])).
           subscribe((text) => {
             if (!(text.includes('id') || text.includes(JSON.parse(added)[0].id))) {
               assert.isFalse(false, 'not ok');
@@ -175,10 +170,11 @@ describe('target', () => {
   });
 
   it('ctl-add-update', (done) => {
-    slaClock.cli(addSequelize('ctladdupdate', ['target', 'add', '--json', '--url', 'add://url'])).subscribe((added) => {
+    slaClock.cli(addSequelize('targetctladdupdate', ['target', 'add', '--json',
+      '--url', 'add://url'])).subscribe((added) => {
       const oadded = JSON.parse(added);
       oadded[0].url = 'update';
-      slaClock.cli(addSequelize('ctladdupdate', ['target', 'update', '--json',
+      slaClock.cli(addSequelize('targetctladdupdate', ['target', 'update', '--json',
         '--url', oadded[0].url, '--id', JSON.parse(added)[0].id]))
         .subscribe((updated) => {
           assert.equal(oadded[0].id, JSON.parse(updated)[0].id);
@@ -188,8 +184,10 @@ describe('target', () => {
   });
 
   it('ctl-del-list', (done) => {
-    slaClock.cli(addSequelize('ctldellist', ['target', 'add', '--json', '--url', 'add://url'])).subscribe((added) => {
-      slaClock.cli(addSequelize('ctldellist', ['target', 'del', '--json', '--id', JSON.parse(added)[0].id]))
+    slaClock.cli(addSequelize('targetctldellist', ['target', 'add', '--json',
+      '--url', 'add://url'])).subscribe((added) => {
+      slaClock.cli(addSequelize('targetctldellist', ['target', 'del', '--json',
+        '--id', JSON.parse(added)[0].id]))
         .subscribe((deleted) => {
           assert.deepEqual(JSON.parse(added), JSON.parse(deleted));
         }, null, done);
