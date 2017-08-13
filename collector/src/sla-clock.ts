@@ -4,6 +4,7 @@ import * as Rx from 'rxjs';
 import * as yargs from 'yargs';
 
 import * as collector from './collector';
+import * as view from './view';
 import * as target from './target';
 import * as log from './log';
 import * as cliHelper from './cli-helper';
@@ -53,6 +54,7 @@ export function cli(args: string[]): Rx.Observable<string> {
     y = log.Cli.command(y, observer);
     y = target.Cli.command(y, observer);
     y = collector.Cli.command(y);
+    y = view.Cli.command(y);
     y.help().parse(args);
   });
 }

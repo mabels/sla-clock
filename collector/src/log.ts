@@ -1,6 +1,6 @@
 import {
   Table, Column, Model, CreatedAt, IsUUID,
-  UpdatedAt, DeletedAt, Sequelize, DataType, PrimaryKey,
+  UpdatedAt, DeletedAt, Sequelize, DataType, PrimaryKey
 } from 'sequelize-typescript';
 import * as Rx from 'rxjs';
 import * as uuid from 'uuid';
@@ -15,6 +15,7 @@ export class Log extends Model<Log> {
   @Column(DataType.UUID)
   public id: string;
   @Column(DataType.STRING)
+  // @Column({})
   public state: string;
   @Column(DataType.INTEGER)
   public statusCode: number;
