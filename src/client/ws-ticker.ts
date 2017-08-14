@@ -18,6 +18,9 @@ function connector(msg: Ticking[]): void {
   ws.onclose = (e: CloseEvent) => {
     // debugger
     setTimeout(() => connector(msg), 1000);
+    if (msg[0]) {
+      msg[0](null);
+    }
   };
   ws.onmessage = (e: MessageEvent) => {
     if (msg[0]) {
